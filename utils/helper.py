@@ -1,4 +1,4 @@
-from typing import Tuple, Iterator, Any, List
+from typing import Tuple, Iterator, List
 from decimal import Decimal
 import heapq
 

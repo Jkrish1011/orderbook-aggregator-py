@@ -12,7 +12,7 @@ import argparse
 import textwrap
 from decimal import Decimal
 from utils.data_loader import get_coinbase_data, get_gemini_data
-from utils.merger import merge_sorted_asks, merge_sorted_bids, calculate_buy_price, calculate_sell_price
+from utils.helper import merge_sorted_asks, merge_sorted_bids, calculate_buy_price, calculate_sell_price
 
 
 # loads the environment variables from the .env file
@@ -93,8 +93,6 @@ def main(quantity):
         print("Error: ", e)
         exit(1)
     
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
