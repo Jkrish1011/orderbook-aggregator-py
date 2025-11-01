@@ -12,6 +12,7 @@ import argparse
 import textwrap
 from decimal import Decimal
 from utils.data_loader import get_coinbase_data, get_gemini_data
+from utils.merger import merge_sorted_asks, merge_sorted_bids
 
 
 # loads the environment variables from the .env file
@@ -71,6 +72,10 @@ def main(quantity):
     print("Gemini asks: ", gemini_data['asks'][0:5])
 
     print("Matching the bids and asks for quantity: ", quantity)
+    merged_asks = merge_sorted_asks(coinbase_data['asks'], gemini_data['asks'])
+    print("Merged asks: ", merged_asks)
+    merged_bids = merge_sorted_bids(coinbase_data['bids'], gemini_data['bids'])
+    print("Merged bids: ", merged_bids)
 
 
 

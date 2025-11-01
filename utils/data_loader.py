@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 def get_coinbase_data(API) -> Dict[str, Any]:
     try:
-
         response = requests.get(API)
         response.raise_for_status()
         return response.json()
