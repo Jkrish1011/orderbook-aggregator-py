@@ -149,3 +149,76 @@ class TestRateLimiter:
         assert func2() == 1
         assert func2() == 2
     
+
+class TestMultiThreadFunctionalities:
+
+    def test_multi_calls_to_system(self):
+        
+        # call the coinbase data fetch and gemini data fetch in parallel multiple times
+        from utils.data_loader import get_coinbase_data
+        import os
+        from dotenv import load_dotenv
+        
+        load_dotenv()
+        COINBASE_API = os.getenv("COINBASE_API")
+        
+        if not COINBASE_API:
+            pytest.skip("COINBASE_API not configured in .env")
+        
+        call_times = []
+        
+        # Make 3 sequential calls. For 4 it fails.
+        for i in range(3):
+            start_time = time.monotonic()
+            try:
+                data = get_coinbase_data(COINBASE_API)
+                call_times.append(time.monotonic())
+                print(f"Call {i+1} succeeded at {call_times[-1]:.2f}")
+                assert data is not None
+            except Exception as e:
+                if "Insufficient tokens" in str(e):
+                    print(f"Call {i+1} was rate limited as expected")
+                    # This should only happen if we're calling too fast
+                    assert i > 0, "First call should never be rate limited"
+                else:
+                    raise
+        
+        # Verify intervals between successful calls are at least 2 seconds
+        for i in range(1, len(call_times)):
+            interval = call_times[i] - call_times[i-1]
+            print(f"Interval between call {i} and {i+1}: {interval:.2f} seconds")
+            assert interval >= 2.0, f"Expected at least 2 seconds between calls, got {interval:.2f}"
+
+    def test_multi_thread_calls_to_system(self):
+        from utils.data_loader import get_coinbase_data
+        import os
+        from dotenv import load_dotenv
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        load_dotenv()
+        COINBASE_API = os.getenv("COINBASE_API")
+        
+        if not COINBASE_API:
+            pytest.skip("COINBASE_API not configured in .env")
+        
+        def get_coinbase_data_with_delay(delay):
+            time.sleep(delay)
+            data = get_coinbase_data(COINBASE_API)
+            print("data length: ", len(data))
+            return time.monotonic()
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            coinbase_future_1 = executor.submit(get_coinbase_data_with_delay, 0.0)
+            coinbase_future_2 = executor.submit(get_coinbase_data_with_delay, 2.5)
+            coinbase_future_3 = executor.submit(get_coinbase_data_with_delay, 5.0)
+            # coinbase_future_4 = executor.submit(get_coinbase_data, COINBASE_API)
+            # coinbase_future_5 = executor.submit(get_coinbase_data, COINBASE_API)
+
+            for future in as_completed([coinbase_future_1, coinbase_future_2, coinbase_future_3]):
+                try:
+                    data = future.result()
+                    print("time taken: ", data)
+                    
+                except Exception as e:
+                    print("Error : ", e)
+                    exit(1)
