@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os
 import argparse
 from decimal import Decimal
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from utils.data_loader import get_coinbase_data, get_gemini_data
 from utils.helper import merge_sorted_asks, merge_sorted_bids, calculate_buy_price, calculate_sell_price
@@ -23,10 +24,28 @@ GEMINI_API = os.getenv("GEMINI_API")
 
 
 def main(quantity):
+    print("Fetching Coinbase and Gemini Data")
+    coinbase_data = None
+    gemini_data = None
 
-    # getting the data from coinbase and gemini
-    print("Fetching data from Coinbase data")
-    coinbase_data = get_coinbase_data(COINBASE_API)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        coinbase_future = executor.submit(get_coinbase_data, COINBASE_API)
+        gemini_future = executor.submit(get_gemini_data, GEMINI_API)
+
+
+        for future in as_completed([coinbase_future, gemini_future]):
+            try:
+                data = future.result()
+
+                if future is coinbase_future:
+                    print("Coinbase data fetched successfully")
+                    coinbase_data = data
+                else:
+                    print("Gemini data fetched successfully")
+                    gemini_data = data
+            except Exception as e:
+                print("Error : ", e)
+                exit(1)
     
     if coinbase_data is None:
         print("Error: Failed to fetch data from Coinbase")
@@ -40,8 +59,6 @@ def main(quantity):
         print("Error: No bids or asks found in Coinbase")
         exit(1)
     
-    print("Fetching data from Gemini data")
-    gemini_data = get_gemini_data(GEMINI_API)
     if gemini_data is None:
         print("Error: Failed to fetch data from Gemini")
         exit(1)
@@ -63,37 +80,37 @@ def main(quantity):
     print("Gemini asks: ", len(gemini_data['asks']))
     print("--------------------------------")
 
-    # print("Some sample data from the data")
-    # print("--------------------------------")
-    # print("Coinbase")
-    # print("Coinbase bids: ", coinbase_data['bids'][0:5])
-    # print("Coinbase asks: ", coinbase_data['asks'][0:5])
-    # print("--------------------------------")
-    # print("Gemini")
-    # print("Gemini bids: ", gemini_data['bids'][0:5])
-    # print("Gemini asks: ", gemini_data['asks'][0:5])
+    print("Merging the dataset")
+    merged_asks = None
+    merged_bids = None
 
-    print("Matching the bids and asks for quantity: ", quantity)
-    merged_asks = merge_sorted_asks(coinbase_data['asks'], gemini_data['asks'])
-    # print("Merged asks: ", merged_asks)
-    merged_bids = merge_sorted_bids(coinbase_data['bids'], gemini_data['bids'])
-    # print("Merged bids: ", merged_bids)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        merged_asks_future = executor.submit(merge_sorted_asks, coinbase_data['asks'], gemini_data['asks'])
+        merged_bids_future = executor.submit(merge_sorted_bids, coinbase_data['bids'], gemini_data['bids'])
+
+
+        for future in as_completed([merged_asks_future, merged_bids_future]):
+            data = future.result()
+
+            if future is merged_asks_future:
+                print("Asks merged successfully!")
+                merged_asks = data
+            else:
+                print("Bids merged successfully!")
+                merged_bids = data
 
     # buy caculation
-    try:
-        buy_price = calculate_buy_price(merged_bids, quantity)
-        print(f"To buy {quantity} BTC: ${buy_price:,.2f}")
-    except Exception as e:
-        print("Error: ", e)
-        exit(1)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        calculate_bids_future = executor.submit(calculate_buy_price, merged_bids, quantity)
+        calculate_asks_future = executor.submit(calculate_sell_price, merged_asks, quantity)
 
-    # sell calculation
-    try:
-        sell_price = calculate_sell_price(merged_asks, quantity)
-        print(f"To sell {quantity} BTC: ${sell_price:,.2f}")
-    except Exception as e:
-        print("Error: ", e)
-        exit(1)
+        for future in as_completed([calculate_bids_future, calculate_asks_future]):
+            data = future.result()
+
+            if future is calculate_bids_future:
+                print(f"To buy {quantity} BTC: ${data:,.2f}")
+            else:
+                print(f"To sell {quantity} BTC: ${data:,.2f}")        
     
 
 if __name__ == "__main__":
