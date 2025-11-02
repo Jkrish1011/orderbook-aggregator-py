@@ -25,6 +25,7 @@ GEMINI_API = os.getenv("GEMINI_API")
 def main(quantity):
 
     # getting the data from coinbase and gemini
+    print("Fetching data from Coinbase data")
     coinbase_data = get_coinbase_data(COINBASE_API)
     
     if coinbase_data is None:
@@ -39,6 +40,7 @@ def main(quantity):
         print("Error: No bids or asks found in Coinbase")
         exit(1)
     
+    print("Fetching data from Gemini data")
     gemini_data = get_gemini_data(GEMINI_API)
     if gemini_data is None:
         print("Error: Failed to fetch data from Gemini")
@@ -80,7 +82,7 @@ def main(quantity):
     # buy caculation
     try:
         buy_price = calculate_buy_price(merged_bids, quantity)
-        print("Buy price: ", buy_price)
+        print(f"To buy {quantity} BTC: ${buy_price:,.2f}")
     except Exception as e:
         print("Error: ", e)
         exit(1)
@@ -88,7 +90,7 @@ def main(quantity):
     # sell calculation
     try:
         sell_price = calculate_sell_price(merged_asks, quantity)
-        print("Sell price: ", sell_price)
+        print(f"To sell {quantity} BTC: ${sell_price:,.2f}")
     except Exception as e:
         print("Error: ", e)
         exit(1)
